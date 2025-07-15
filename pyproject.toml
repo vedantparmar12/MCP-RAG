@@ -1,0 +1,15 @@
+[project]
+name = "crawl4ai-mcp"
+version = "0.1.0"
+description = "Simplified RAG MCP server for integrating web crawling and RAG into AI agents"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "crawl4ai==0.6.2",
+    "mcp==1.7.1",
+    "supabase==2.15.1",
+    "openai==1.71.0",
+    "google-generativeai>=0.8.0",
+    "dotenv==0.9.9",
+    "sentence-transformers>=4.1.0",
+]
