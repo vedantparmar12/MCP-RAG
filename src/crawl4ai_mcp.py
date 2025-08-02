@@ -1041,6 +1041,299 @@ async def crawl_recursive_internal_links(crawler: AsyncWebCrawler, start_urls: L
 
     return results_all
 
+# Import self-improvement modules
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from agents.evolution_orchestrator import EvolutionOrchestrator
+from evaluation.correctness_evaluator import CorrectnessEvaluator
+
+# Global instances for self-improvement
+evolution_orchestrator = None
+correctness_evaluator = None
+
+@mcp.tool()
+async def self_heal_system(ctx: Context, issue_description: str) -> str:
+    """
+    Automatically diagnose and fix system issues.
+    
+    This tool uses intelligent agents to identify problems, validate dependencies,
+    debug code, and test fixes before applying them to ensure system stability.
+    
+    Args:
+        ctx: The MCP server provided context
+        issue_description: Description of the issue to fix
+    
+    Returns:
+        JSON string with the healing process status and applied fixes
+    """
+    global evolution_orchestrator
+    
+    if not evolution_orchestrator:
+        evolution_orchestrator = EvolutionOrchestrator()
+    
+    try:
+        # Analyze the issue
+        healing_context = {
+            "user_request": f"Fix issue: {issue_description}",
+            "healing_mode": True,
+            "auto_fix": True
+        }
+        
+        # Execute healing workflow
+        healing_result = await evolution_orchestrator.evolve(healing_context["user_request"])
+        
+        return json.dumps({
+            "success": True,
+            "issue": issue_description,
+            "status": healing_result.get("status", "unknown"),
+            "fixes_applied": healing_result.get("fixes_applied", []),
+            "validation_results": healing_result.get("test_results", {}),
+            "evolution_id": healing_result.get("evolution_id")
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "issue": issue_description,
+            "error": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def evolve_rag_capability(
+    ctx: Context,
+    feature_request: str,
+    documentation_urls: Optional[List[str]] = None
+) -> str:
+    """
+    Evolve the RAG system with new capabilities.
+    
+    This tool allows the system to self-improve by analyzing feature requests,
+    crawling relevant documentation, generating implementation code, and safely
+    deploying new features after thorough testing.
+    
+    Args:
+        ctx: The MCP server provided context
+        feature_request: Description of the desired feature
+        documentation_urls: Optional URLs to crawl for implementation reference
+    
+    Returns:
+        JSON string with evolution status and newly added capabilities
+    """
+    global evolution_orchestrator
+    
+    if not evolution_orchestrator:
+        evolution_orchestrator = EvolutionOrchestrator()
+    
+    try:
+        # Crawl documentation if provided
+        if documentation_urls:
+            supabase_client = ctx.request_context.lifespan_context.supabase_client
+            crawler = ctx.request_context.lifespan_context.crawler
+            
+            for url in documentation_urls:
+                # Use existing smart_crawl_url functionality
+                crawl_result = await smart_crawl_url(ctx, url)
+                print(f"Crawled documentation: {url}")
+        
+        # Trigger evolution
+        evolution_result = await evolution_orchestrator.evolve(
+            feature_request, 
+            documentation_urls
+        )
+        
+        return json.dumps({
+            "success": True,
+            "feature_request": feature_request,
+            "evolution_status": evolution_result.get("status"),
+            "evolution_id": evolution_result.get("evolution_id"),
+            "generated_code": evolution_result.get("generated_code", []),
+            "test_results": evolution_result.get("test_results", {}),
+            "deployment_status": evolution_result.get("deployment_status")
+        }, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "feature_request": feature_request,
+            "error": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def perform_rag_query_with_metrics(
+    ctx: Context,
+    query: str,
+    source: Optional[str] = None,
+    match_count: int = 5,
+    enable_evaluation: bool = True
+) -> str:
+    """
+    Enhanced RAG query with correctness evaluation metrics.
+    
+    This tool performs standard RAG queries while also evaluating the correctness
+    of results using multiple metrics including factual accuracy, ROUGE scores,
+    nDCG ranking quality, and code quality assessment.
+    
+    Args:
+        ctx: The MCP server provided context
+        query: The search query
+        source: Optional domain/source to filter results
+        match_count: Maximum number of results to return (default: 5)
+        enable_evaluation: Whether to calculate correctness metrics (default: True)
+    
+    Returns:
+        JSON string containing results and correctness metrics
+    """
+    global correctness_evaluator
+    
+    if not correctness_evaluator:
+        correctness_evaluator = CorrectnessEvaluator()
+    
+    try:
+        # Perform standard RAG query using existing function
+        rag_result = await perform_rag_query(ctx, query, source, match_count)
+        rag_data = json.loads(rag_result)
+        
+        if not rag_data.get("success"):
+            return rag_result
+        
+        response = {
+            "success": True,
+            "query": query,
+            "source_filter": source,
+            "results": rag_data.get("results", []),
+            "count": rag_data.get("count", 0),
+            "search_mode": rag_data.get("search_mode"),
+            "reranking_applied": rag_data.get("reranking_applied"),
+            "metrics": None
+        }
+        
+        # Evaluate correctness if enabled and we have results
+        if enable_evaluation and rag_data.get("results"):
+            # Combine result contents as generated response
+            generated_response = "\n\n".join([
+                r.get("content", "") for r in rag_data["results"]
+            ])
+            
+            # Prepare chunks for evaluation
+            retrieved_chunks = [
+                {"content": r.get("content", "")} 
+                for r in rag_data["results"]
+            ]
+            
+            metrics = await correctness_evaluator.evaluate_iteration(
+                query=query,
+                retrieved_chunks=retrieved_chunks,
+                generated_response=generated_response
+            )
+            
+            response["metrics"] = metrics
+            
+            # Log metrics for visibility
+            logger.info(f"""
+📊 RAG Evaluation Results:
+═══════════════════════════════════════
+Overall Score: {metrics['overall_score']}%
+
+📌 Correctness: {metrics['evaluation_metrics']['correctness']['score']}%
+   → Factual accuracy grounded in documents
+
+📝 ROUGE Scores:
+   • ROUGE-1: {metrics['evaluation_metrics']['rouge_scores']['rouge_1']}%
+   • ROUGE-2: {metrics['evaluation_metrics']['rouge_scores']['rouge_2']}%
+   • ROUGE-L: {metrics['evaluation_metrics']['rouge_scores']['rouge_l']}%
+   → Measures text overlap quality
+
+📊 nDCG: {metrics['evaluation_metrics']['ndcg']['score']}%
+   → Document ranking quality
+
+💻 Code Quality: {metrics['evaluation_metrics']['code_quality']['score']}%
+   → Generated code evaluation
+
+📈 Improvement Trend: {metrics['improvement_trend']}%
+═══════════════════════════════════════
+""")
+        
+        return json.dumps(response, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "query": query,
+            "error": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def get_system_metrics(ctx: Context) -> str:
+    """
+    Get comprehensive system metrics and evaluation history.
+    
+    This tool provides insights into the system's performance, correctness trends,
+    and evolution history to help monitor and improve the RAG system over time.
+    
+    Args:
+        ctx: The MCP server provided context
+    
+    Returns:
+        JSON string with system metrics and performance data
+    """
+    global correctness_evaluator, evolution_orchestrator
+    
+    metrics = {
+        "timestamp": str(datetime.now()),
+        "correctness_metrics": None,
+        "evolution_history": None,
+        "system_health": {}
+    }
+    
+    try:
+        # Get correctness evaluation metrics
+        if correctness_evaluator:
+            metrics["correctness_metrics"] = correctness_evaluator.get_metrics_summary()
+        
+        # Get evolution history
+        if evolution_orchestrator:
+            # Get recent evolution requests from memory
+            evolution_history = []
+            memory_results = evolution_orchestrator.memory.search(
+                query="evolution",
+                limit=10
+            )
+            for result in memory_results:
+                if result.get("metadata", {}).get("type") == "evolution_request":
+                    evolution_history.append({
+                        "id": result["metadata"].get("id"),
+                        "request": result.get("memory", ""),
+                        "timestamp": result.get("created_at")
+                    })
+            metrics["evolution_history"] = evolution_history
+        
+        # Get system health metrics
+        import psutil
+        metrics["system_health"] = {
+            "cpu_percent": psutil.cpu_percent(interval=1),
+            "memory_percent": psutil.virtual_memory().percent,
+            "disk_usage": psutil.disk_usage('/').percent
+        }
+        
+        # Get database statistics
+        try:
+            supabase_client = ctx.request_context.lifespan_context.supabase_client
+            
+            # Count documents
+            pages_count = supabase_client.from_('crawled_pages').select('id', count='exact').execute()
+            sources_count = supabase_client.from_('sources').select('source_id', count='exact').execute()
+            
+            metrics["database_stats"] = {
+                "total_documents": pages_count.count if hasattr(pages_count, 'count') else 0,
+                "total_sources": sources_count.count if hasattr(sources_count, 'count') else 0
+            }
+        except:
+            metrics["database_stats"] = {"error": "Unable to fetch database stats"}
+        
+        return json.dumps(metrics, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        }, indent=2)
+
 async def main():
     transport = os.getenv("TRANSPORT", "sse")
     if transport == 'sse':

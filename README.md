@@ -38,12 +38,21 @@ The Crawl4AI RAG MCP server is just the beginning. Here's where we're headed:
 
 ## Features
 
+### Core RAG Features
 - **Smart URL Detection**: Automatically detects and handles different URL types (regular webpages, sitemaps, text files)
 - **Recursive Crawling**: Follows internal links to discover content
 - **Parallel Processing**: Efficiently crawls multiple pages simultaneously
 - **Content Chunking**: Intelligently splits content by headers and size for better processing
 - **Vector Search**: Performs RAG over crawled content, optionally filtering by data source for precision
 - **Source Retrieval**: Retrieve sources available for filtering to guide the RAG process
+
+### Self-Improvement Architecture (NEW)
+- **Multi-Agent System**: Intelligent agents for dependency validation, code debugging, and integration testing
+- **Evolution Orchestrator**: LangGraph-based workflow engine that coordinates the self-improvement process
+- **Correctness Evaluation**: Comprehensive metrics including factual accuracy, ROUGE scores, nDCG, and code quality
+- **Self-Healing Capabilities**: Automatic detection and resolution of system issues
+- **Feature Evolution**: System can analyze user requests, generate new features, test them, and deploy safely
+- **Memory Persistence**: Uses Mem0 for tracking evolution history and learning from past improvements
 
 ## Tools
 
@@ -59,6 +68,16 @@ The server provides essential web crawling and search tools:
 ### Conditional Tools
 
 5. **`search_code_examples`** (requires `USE_AGENTIC_RAG=true`): Search specifically for code examples and their summaries from crawled documentation. This tool provides targeted code snippet retrieval for AI coding assistants.
+
+### Self-Improvement Tools (NEW)
+
+6. **`self_heal_system`**: Automatically diagnose and fix system issues using intelligent agents that validate dependencies, debug code, and test fixes before applying them.
+
+7. **`evolve_rag_capability`**: Enable the system to self-improve by analyzing feature requests, crawling relevant documentation, generating implementation code, and safely deploying new features after thorough testing.
+
+8. **`perform_rag_query_with_metrics`**: Enhanced RAG query that includes correctness evaluation metrics (factual accuracy, ROUGE scores, nDCG ranking quality, and code quality assessment).
+
+9. **`get_system_metrics`**: Get comprehensive system metrics, evaluation history, and performance insights to monitor and improve the RAG system over time.
 
 ## Prerequisites
 
@@ -301,6 +320,69 @@ Add this server to your MCP configuration for Claude Desktop, Windsurf, or any o
 }
 ```
 
+## Self-Improvement Architecture Details
+
+### Core Components
+
+#### 1. **Version Control & Rollback System**
+- Git-based version tracking for all system changes
+- Automatic checkpoint creation before deployments
+- Rollback capabilities for failed evolutions
+- Branch management for feature development
+
+#### 2. **Security Sandbox**
+- Code validation with AST analysis
+- Detection of dangerous patterns and operations
+- Sandboxed execution environment with resource limits
+- Security risk assessment for generated code
+
+#### 3. **Resource Management**
+- Rate limiting for API calls and evolution requests
+- Cost tracking for API usage (OpenAI, Supabase)
+- System resource monitoring (CPU, memory, disk)
+- User quota management
+
+#### 4. **Automated Testing Framework**
+- Automatic test generation for new features
+- Integration with pytest for test execution
+- Coverage reporting and threshold enforcement
+- Regression test suite management
+
+#### 5. **Agent Orchestration**
+- LangGraph-based workflow management
+- Coordinated agent execution with state management
+- Error recovery and retry mechanisms
+- Memory persistence with Mem0
+
+### Usage Examples
+
+#### Self-Healing System Issue
+```python
+# Example: Fix a dependency issue
+result = await self_heal_system(
+    issue_description="ImportError: langgraph module not found"
+)
+```
+
+#### Evolving New Capability
+```python
+# Example: Add a new RAG feature
+result = await evolve_rag_capability(
+    feature_request="Add support for PDF document crawling and indexing",
+    documentation_urls=["https://pypdf2.readthedocs.io/"]
+)
+```
+
+#### Running Query with Metrics
+```python
+# Example: Perform RAG query with evaluation
+result = await perform_rag_query_with_metrics(
+    query="How to implement OAuth in FastAPI?",
+    source="fastapi.tiangolo.com",
+    enable_evaluation=True
+)
+```
+
 ## Building Your Own Server
 
 This implementation provides a foundation for building more complex MCP servers with web crawling capabilities. To build your own:
@@ -309,3 +391,5 @@ This implementation provides a foundation for building more complex MCP servers 
 2. Create your own lifespan function to add your own dependencies
 3. Modify the `utils.py` file for any helper functions you need
 4. Extend the crawling capabilities by adding more specialized crawlers
+5. Implement custom agents by extending the BaseAgent class
+6. Add new RAG strategies in the evaluation system
