@@ -7,12 +7,12 @@ import uuid
 import asyncio
 from langgraph.graph import StateGraph, END
 from mem0 import Memory
-import openai
 import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from .base_agent import BaseAgent
+from llm.manager import LLMManager
 from .dependency_validator import DependencyValidatorAgent
 from .code_debugger import CodeDebuggerAgent
 from .integration_tester import IntegrationTesterAgent
@@ -32,7 +32,7 @@ class EvolutionOrchestrator:
             "integration_tester": IntegrationTesterAgent("IntegrationTester", self.memory)
         }
         self.workflow = self._build_workflow()
-        self.openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.llm_manager = LLMManager(default_provider=os.getenv("LLM_PROVIDER", "auto"))
         
         # Initialize new components
         self.version_control = EvolutionVersionControl()
@@ -153,16 +153,17 @@ class EvolutionOrchestrator:
         request = state["user_request"]
         
         # Use LLM to analyze the request
-        response = self.openai_client.chat.completions.create(
-            model=os.getenv("MODEL_CHOICE", "gpt-4o-mini"),
-            messages=[
-                {"role": "system", "content": "You are an expert at analyzing feature requests for a RAG MCP server. Extract the key requirements and implementation details."},
-                {"role": "user", "content": f"Analyze this feature request and extract key requirements:\n\n{request}"}
-            ],
-            temperature=0.3
-        )
+        messages = [
+            {"role": "system", "content": "You are an expert at analyzing feature requests for a RAG MCP server. Extract the key requirements and implementation details."},
+            {"role": "user", "content": f"Analyze this feature request and extract key requirements:\n\n{request}"}
+        ]
         
-        analysis = response.choices[0].message.content
+        analysis = asyncio.run(
+            self.llm_manager.chat_completion(
+                messages=messages,
+                temperature=0.3
+            )
+        )
         
         state["request_analysis"] = {
             "raw_analysis": analysis,
@@ -190,24 +191,21 @@ class EvolutionOrchestrator:
         # Generate code based on the analysis
         prompt = self._build_code_generation_prompt(state)
         
-        # Track API cost
-        response = self.openai_client.chat.completions.create(
-            model=os.getenv("MODEL_CHOICE", "gpt-4o-mini"),
-            messages=[
-                {"role": "system", "content": "You are an expert Python developer specializing in MCP servers and RAG systems. Generate high-quality, production-ready code."},
-                {"role": "user", "content": prompt}
-            ],
+        messages = [
+            {"role": "system", "content": "You are an expert Python developer specializing in MCP servers and RAG systems. Generate high-quality, production-ready code."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        generated_code = await self.llm_manager.chat_completion(
+            messages=messages,
             temperature=0.2
         )
         
-        # Track token usage
-        if hasattr(response, 'usage'):
-            await self.resource_manager.track_api_cost(
-                "openai_gpt4", 
-                response.usage.total_tokens
-            )
-        
-        generated_code = response.choices[0].message.content
+        # Track resource usage
+        await self.resource_manager.track_api_cost(
+            "llm_generation", 
+            len(prompt) + len(generated_code)  # Approximate token count
+        )
         
         # Extract code from response
         code_blocks = self._extract_code_blocks(generated_code)

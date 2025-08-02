@@ -1,8 +1,11 @@
 """
-MCP server for web crawling with Crawl4AI.
+Crawl4AI MCP Server with RAG capabilities, self-improvement features,
+and support for open-source LLMs and visual document processing.
 
 This server provides tools to crawl websites using Crawl4AI, automatically detecting
 the appropriate crawl method based on URL type (sitemap, txt file, or regular webpage).
+Includes support for multimodal embeddings, visual document processing with ColPali,
+and runs entirely on open-source models.
 """
 from mcp.server.fastmcp import FastMCP, Context
 from sentence_transformers import CrossEncoder
@@ -1328,6 +1331,106 @@ async def get_system_metrics(ctx: Context) -> str:
             metrics["database_stats"] = {"error": "Unable to fetch database stats"}
         
         return json.dumps(metrics, indent=2)
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def process_visual_document(
+    ctx: Context,
+    image_path: str,
+    doc_id: str,
+    text_content: Optional[str] = None
+) -> str:
+    """
+    Process a visual document (PDF page, screenshot, etc.) using ColPali.
+    
+    Args:
+        ctx: The context object
+        image_path: Path to the image file
+        doc_id: Unique identifier for the document
+        text_content: Optional extracted text for hybrid search
+        
+    Returns:
+        JSON string with processing results
+    """
+    try:
+        # Check if ColPali is available
+        try:
+            from visual.colpali_processor import HybridDocumentRAG
+            
+            # Initialize hybrid RAG if not already done
+            if not hasattr(ctx.request_context.lifespan_context, 'hybrid_rag'):
+                cohere_key = os.getenv("COHERE_API_KEY")
+                ctx.request_context.lifespan_context.hybrid_rag = HybridDocumentRAG(
+                    cohere_api_key=cohere_key
+                )
+            
+            hybrid_rag = ctx.request_context.lifespan_context.hybrid_rag
+            
+            # Add the visual document
+            await hybrid_rag.add_visual_document(
+                doc_id=doc_id,
+                image_path=image_path,
+                text_content=text_content
+            )
+            
+            return json.dumps({
+                "success": True,
+                "doc_id": doc_id,
+                "message": "Visual document processed successfully"
+            }, indent=2)
+            
+        except ImportError:
+            return json.dumps({
+                "success": False,
+                "error": "ColPali not installed. Install with: pip install colpali-engine"
+            }, indent=2)
+            
+    except Exception as e:
+        return json.dumps({
+            "success": False,
+            "error": str(e)
+        }, indent=2)
+
+@mcp.tool()
+async def search_visual_documents(
+    ctx: Context,
+    query: str,
+    top_k: int = 10
+) -> str:
+    """
+    Search visual documents using ColPali's late interaction retrieval.
+    
+    Args:
+        ctx: The context object
+        query: Search query
+        top_k: Number of results to return
+        
+    Returns:
+        JSON string with search results
+    """
+    try:
+        # Check if hybrid RAG is initialized
+        if not hasattr(ctx.request_context.lifespan_context, 'hybrid_rag'):
+            return json.dumps({
+                "success": False,
+                "error": "No visual documents indexed. Use process_visual_document first."
+            }, indent=2)
+        
+        hybrid_rag = ctx.request_context.lifespan_context.hybrid_rag
+        
+        # Perform visual search
+        results = await hybrid_rag.search_visual_documents(query, top_k)
+        
+        return json.dumps({
+            "success": True,
+            "results": results,
+            "count": len(results)
+        }, indent=2)
+        
     except Exception as e:
         return json.dumps({
             "success": False,

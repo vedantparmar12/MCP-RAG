@@ -10,8 +10,10 @@ import asyncio
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 import logging
-import openai
 from datetime import datetime
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from llm.manager import LLMManager
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ class AutomatedTestGenerator:
     """Generate and execute tests for evolved features"""
     
     def __init__(self):
-        self.openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.llm_manager = LLMManager(default_provider=os.getenv("LLM_PROVIDER", "auto"))
         self.test_templates = self._load_test_templates()
         self.coverage_threshold = 80.0  # Minimum coverage percentage
     
@@ -128,16 +130,17 @@ def test_{function_name}_error_handling():
             # Generate test code using LLM
             prompt = self._build_test_generation_prompt(feature_code, analysis, feature_type)
             
-            response = self.openai_client.chat.completions.create(
-                model=os.getenv("MODEL_CHOICE", "gpt-4o-mini"),
-                messages=[
-                    {"role": "system", "content": "You are an expert test engineer. Generate comprehensive pytest tests including edge cases, error handling, and integration tests."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2
-            )
+            messages = [
+                {"role": "system", "content": "You are an expert test engineer. Generate comprehensive pytest tests including edge cases, error handling, and integration tests."},
+                {"role": "user", "content": prompt}
+            ]
             
-            generated_tests = response.choices[0].message.content
+            generated_tests = asyncio.run(
+                self.llm_manager.chat_completion(
+                    messages=messages,
+                    temperature=0.2
+                )
+            )
             
             # Post-process and validate tests
             tests = self._post_process_tests(generated_tests, analysis)

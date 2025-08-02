@@ -38,21 +38,50 @@ The Crawl4AI RAG MCP server is just the beginning. Here's where we're headed:
 
 ## Features
 
+### Open-Source LLM Support (NEW)
+- **No More GPT Dependency**: Replaced OpenAI GPT models with open-source alternatives
+- **Ollama Integration**: Run powerful models like Mistral, Llama 2, and Gemma locally
+- **HuggingFace Models**: Support for thousands of models including Phi-3, Mistral, and more
+- **Quantization Support**: 4-bit and 8-bit quantization for running large models on consumer GPUs
+- **Automatic Fallback**: Seamless switching between providers if one fails
+- **Zero API Costs**: Run everything locally with Ollama for complete cost control
+
+### Multi-Model Embedding Support (NEW)
+- **OpenAI Embeddings**: Industry-standard embeddings with models like text-embedding-3-small/large
+- **Cohere Embeddings**: Advanced embeddings with multilingual and multimodal support (v4.0)
+- **Ollama Embeddings**: Fully local embeddings with no API costs using models like nomic-embed-text
+- **HuggingFace Embeddings**: Flexible embeddings with both local and API options, supporting hundreds of models
+- **Automatic Provider Selection**: Smart selection based on performance, cost, and availability
+- **Fallback Support**: Automatic fallback to alternative providers if primary fails
+- **Performance Tracking**: Monitors latency, success rates, and costs across providers
+
+### Visual Document Processing with ColPali (NEW)
+- **PDF & Image Understanding**: Process visual documents using state-of-the-art ColPali model
+- **Late Interaction Search**: ColBERT-style retrieval for better accuracy on visual content
+- **Hybrid RAG**: Combine visual and text search with intelligent reranking
+- **Batch Processing**: Efficient parallel processing of multiple documents
+
 ### Core RAG Features
 - **Smart URL Detection**: Automatically detects and handles different URL types (regular webpages, sitemaps, text files)
-- **Recursive Crawling**: Follows internal links to discover content
-- **Parallel Processing**: Efficiently crawls multiple pages simultaneously
-- **Content Chunking**: Intelligently splits content by headers and size for better processing
+- **Recursive Crawling**: Follows internal links to discover content with configurable depth control
+- **Parallel Processing**: Efficiently crawls multiple pages simultaneously with memory-adaptive dispatching
+- **Intelligent Content Chunking**: Smart markdown-aware chunking that respects code blocks, paragraphs, and sentences
 - **Vector Search**: Performs RAG over crawled content, optionally filtering by data source for precision
-- **Source Retrieval**: Retrieve sources available for filtering to guide the RAG process
+- **Source Management**: Automatic source summary generation and metadata tracking with word counts
+- **Batch Processing**: Optimized batch insertion of documents with configurable batch sizes for performance
+- **Concurrent Code Processing**: Parallel processing of code examples using ThreadPoolExecutor for faster indexing
 
 ### Self-Improvement Architecture (NEW)
 - **Multi-Agent System**: Intelligent agents for dependency validation, code debugging, and integration testing
 - **Evolution Orchestrator**: LangGraph-based workflow engine that coordinates the self-improvement process
 - **Correctness Evaluation**: Comprehensive metrics including factual accuracy, ROUGE scores, nDCG, and code quality
-- **Self-Healing Capabilities**: Automatic detection and resolution of system issues
+- **Self-Healing Capabilities**: Automatic detection and resolution of system issues with rollback support
 - **Feature Evolution**: System can analyze user requests, generate new features, test them, and deploy safely
 - **Memory Persistence**: Uses Mem0 for tracking evolution history and learning from past improvements
+- **Real-time System Monitoring**: CPU, memory, and disk usage tracking with performance metrics
+- **API Cost Tracking**: Monitors and manages API usage costs for OpenAI and other services
+- **Automated Test Generation**: Generates pytest-compatible tests for new features with coverage reporting
+- **Security Validation**: AST-based code analysis to detect dangerous patterns before deployment
 
 ## Tools
 
@@ -125,7 +154,25 @@ The server provides essential web crawling and search tools:
 
 4. Install dependencies:
    ```bash
+   # Basic installation (OpenAI embeddings only)
    uv pip install -e .
+   
+   # With Cohere support
+   uv pip install -e ".[cohere]"
+   
+   # With HuggingFace support
+   uv pip install -e ".[huggingface]"
+   
+   # With all providers (embeddings + LLMs + visual)
+   uv pip install -e ".[all]"
+   
+   # With visual document support (ColPali)
+   uv pip install -e ".[colpali]"
+   
+   # With quantization support for large models
+   uv pip install -e ".[quantization]"
+   
+   # Run Crawl4AI setup
    crawl4ai-setup
    ```
 
@@ -151,11 +198,44 @@ HOST=0.0.0.0
 PORT=8051
 TRANSPORT=sse
 
-# OpenAI API Configuration
-OPENAI_API_KEY=your_openai_api_key
+# Embedding Provider Configuration
+EMBEDDING_PROVIDER=auto  # Options: openai, cohere, ollama, huggingface, auto
 
-# LLM for summaries and contextual embeddings
-MODEL_CHOICE=gpt-4.1-nano
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small  # Options: text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
+
+# Cohere Configuration (optional)
+COHERE_API_KEY=your_cohere_api_key
+COHERE_EMBEDDING_MODEL=embed-english-v3.0  # Options: embed-english-v3.0, embed-multilingual-v3.0, embed-v4.0
+COHERE_USE_V2=false  # Set to true for multimodal support with embed-v4.0
+
+# Ollama Configuration (optional - for local embeddings)
+ENABLE_OLLAMA=false  # Set to true to enable Ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text  # Options: nomic-embed-text, all-minilm, mxbai-embed-large
+
+# HuggingFace Configuration (optional)
+ENABLE_HUGGINGFACE=false  # Set to true to enable HuggingFace
+HUGGINGFACE_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+HUGGINGFACE_USE_API=false  # Set to true to use HF Inference API instead of local
+HUGGINGFACE_API_TOKEN=your_hf_api_token  # Required only if USE_API=true
+HUGGINGFACE_DEVICE=cpu  # Options: cpu, cuda, mps
+
+# LLM Provider Configuration (NEW - Open Source Models)
+LLM_PROVIDER=auto  # Options: huggingface, ollama, auto
+
+# Ollama LLM Configuration (recommended for local inference)
+ENABLE_OLLAMA_LLM=true
+OLLAMA_LLM_MODEL=mistral:instruct  # Options: mistral:instruct, llama2:7b-chat, phi, gemma:7b-instruct
+
+# HuggingFace LLM Configuration
+ENABLE_HUGGINGFACE_LLM=true
+HUGGINGFACE_LLM_MODEL=microsoft/Phi-3-mini-4k-instruct  # Small but capable model
+HUGGINGFACE_LLM_USE_API=false  # Set to true to use HF Inference API
+HUGGINGFACE_LLM_DEVICE=cpu  # Options: cpu, cuda, mps
+HUGGINGFACE_LLM_4BIT=false  # Enable 4-bit quantization (requires GPU)
+HUGGINGFACE_LLM_8BIT=false  # Enable 8-bit quantization (requires GPU)
 
 # RAG Strategies (set to "true" or "false", default to "false")
 USE_CONTEXTUAL_EMBEDDINGS=false
@@ -187,12 +267,15 @@ Combines traditional keyword search with semantic vector search to provide more 
 - **Cost**: No additional API costs, just computational overhead.
 
 #### 3. **USE_AGENTIC_RAG**
-Enables specialized code example extraction and storage. When crawling documentation, the system identifies code blocks (≥300 characters), extracts them with surrounding context, generates summaries, and stores them in a separate vector database table specifically designed for code search.
+Enables specialized code example extraction and storage. When crawling documentation, the system identifies code blocks (≥300 characters), extracts them with surrounding context, generates summaries using parallel processing, and stores them in a separate vector database table specifically designed for code search.
 
 - **When to use**: Essential for AI coding assistants that need to find specific code examples, implementation patterns, or usage examples from documentation.
 - **Trade-offs**: Significantly slower crawling due to code extraction and summarization, requires more storage space.
 - **Cost**: Additional LLM API calls for summarizing each code example.
-- **Benefits**: Provides a dedicated `search_code_examples` tool that AI agents can use to find specific code implementations.
+- **Benefits**: 
+  - Provides a dedicated `search_code_examples` tool that AI agents can use to find specific code implementations
+  - Parallel processing of code summaries using ThreadPoolExecutor for faster indexing
+  - Context-aware summaries that include surrounding documentation text
 
 #### 4. **USE_RERANKING**
 Applies cross-encoder reranking to search results after initial retrieval. Uses a lightweight cross-encoder model (`cross-encoder/ms-marco-MiniLM-L-6-v2`) to score each result against the original query, then reorders results by relevance.
@@ -202,10 +285,56 @@ Applies cross-encoder reranking to search results after initial retrieval. Uses 
 - **Cost**: No additional API costs - uses a local model that runs on CPU.
 - **Benefits**: Better result relevance, especially for complex queries. Works with both regular RAG search and code example search.
 
+### Embedding Provider Configuration
+
+The Crawl4AI RAG MCP server now supports multiple embedding providers, each with different strengths:
+
+#### **OpenAI** (Default)
+- **Best for**: High-quality embeddings with good all-around performance
+- **Models**: text-embedding-3-small (1536 dims), text-embedding-3-large (3072 dims)
+- **Cost**: $0.020 - $0.130 per 1M tokens
+- **Setup**: Just set `OPENAI_API_KEY`
+
+#### **Cohere**
+- **Best for**: Multilingual content and multimodal embeddings (text + images)
+- **Models**: embed-english-v3.0, embed-multilingual-v3.0, embed-v4.0 (multimodal)
+- **Cost**: ~$0.100 per 1M tokens
+- **Setup**: Set `COHERE_API_KEY` and `ENABLE_COHERE=true`
+- **Note**: Use `COHERE_USE_V2=true` for multimodal support
+
+#### **Ollama** (Local)
+- **Best for**: Privacy-conscious users, no API costs, offline operation
+- **Models**: nomic-embed-text (768 dims), mxbai-embed-large (1024 dims), etc.
+- **Cost**: FREE (runs locally)
+- **Setup**: Install Ollama, run `ollama pull nomic-embed-text`, set `ENABLE_OLLAMA=true`
+
+#### **HuggingFace**
+- **Best for**: Flexibility, hundreds of model options, both local and API
+- **Models**: all-MiniLM-L6-v2 (384 dims), all-mpnet-base-v2 (768 dims), etc.
+- **Cost**: FREE for local, minimal for API
+- **Setup**: Set `ENABLE_HUGGINGFACE=true`, optionally install sentence-transformers
+
+### LLM Provider Configuration
+
+The Crawl4AI RAG MCP server now uses open-source LLMs instead of OpenAI GPT models:
+
+#### **Ollama** (Recommended for most users)
+- **Best for**: Local inference, privacy, zero API costs
+- **Models**: Mistral 7B Instruct, Llama 2 7B, Phi-2, Gemma 7B
+- **Setup**: Install Ollama, run `ollama pull mistral:instruct`
+- **Performance**: Fast on modern CPUs, faster with GPU
+
+#### **HuggingFace** 
+- **Best for**: Access to cutting-edge models, quantization options
+- **Models**: Phi-3, Mistral, Llama 2, Mixtral, and thousands more
+- **Setup**: Automatic model download on first use
+- **Options**: 4-bit/8-bit quantization for large models on consumer GPUs
+
 ### Recommended Configurations
 
 **For general documentation RAG:**
 ```
+EMBEDDING_PROVIDER=openai
 USE_CONTEXTUAL_EMBEDDINGS=false
 USE_HYBRID_SEARCH=true
 USE_AGENTIC_RAG=false
@@ -214,18 +343,61 @@ USE_RERANKING=true
 
 **For AI coding assistant with code examples:**
 ```
+EMBEDDING_PROVIDER=openai
 USE_CONTEXTUAL_EMBEDDINGS=true
 USE_HYBRID_SEARCH=true
 USE_AGENTIC_RAG=true
 USE_RERANKING=true
 ```
 
-**For fast, basic RAG:**
+**For fast, local, privacy-focused RAG:**
 ```
+# Embeddings
+EMBEDDING_PROVIDER=ollama
+ENABLE_OLLAMA=true
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+
+# LLMs
+LLM_PROVIDER=ollama
+ENABLE_OLLAMA_LLM=true
+OLLAMA_LLM_MODEL=mistral:instruct
+
+# RAG Settings
 USE_CONTEXTUAL_EMBEDDINGS=false
 USE_HYBRID_SEARCH=true
 USE_AGENTIC_RAG=false
 USE_RERANKING=false
+```
+
+**For powerful local setup with GPU:**
+```
+# Embeddings
+EMBEDDING_PROVIDER=huggingface
+ENABLE_HUGGINGFACE=true
+HUGGINGFACE_EMBEDDING_MODEL=BAAI/bge-large-en-v1.5
+
+# LLMs
+LLM_PROVIDER=huggingface
+ENABLE_HUGGINGFACE_LLM=true
+HUGGINGFACE_LLM_MODEL=mistralai/Mistral-7B-Instruct-v0.2
+HUGGINGFACE_LLM_DEVICE=cuda
+HUGGINGFACE_LLM_4BIT=true  # Use 4-bit quantization
+
+# RAG Settings
+USE_CONTEXTUAL_EMBEDDINGS=true
+USE_HYBRID_SEARCH=true
+USE_AGENTIC_RAG=true
+USE_RERANKING=true
+```
+
+**For multilingual content:**
+```
+EMBEDDING_PROVIDER=cohere
+COHERE_EMBEDDING_MODEL=embed-multilingual-v3.0
+USE_CONTEXTUAL_EMBEDDINGS=true
+USE_HYBRID_SEARCH=true
+USE_AGENTIC_RAG=false
+USE_RERANKING=true
 ```
 
 ## Running the Server
@@ -329,30 +501,35 @@ Add this server to your MCP configuration for Claude Desktop, Windsurf, or any o
 - Automatic checkpoint creation before deployments
 - Rollback capabilities for failed evolutions
 - Branch management for feature development
+- Evolution history tracking with unique IDs
 
 #### 2. **Security Sandbox**
 - Code validation with AST analysis
-- Detection of dangerous patterns and operations
-- Sandboxed execution environment with resource limits
+- Detection of dangerous patterns (exec, eval, subprocess, file operations)
+- Sandboxed execution environment with Docker integration
 - Security risk assessment for generated code
+- Configurable security rules and thresholds
 
 #### 3. **Resource Management**
 - Rate limiting for API calls and evolution requests
-- Cost tracking for API usage (OpenAI, Supabase)
-- System resource monitoring (CPU, memory, disk)
-- User quota management
+- Cost tracking for API usage (OpenAI, Supabase) with configurable models
+- System resource monitoring (CPU, memory, disk) using psutil
+- User quota management with hourly/daily limits
+- Circuit breakers for external service failures
 
 #### 4. **Automated Testing Framework**
-- Automatic test generation for new features
+- Automatic test generation for new features using LLM
 - Integration with pytest for test execution
 - Coverage reporting and threshold enforcement
 - Regression test suite management
+- Performance benchmarking for new features
 
 #### 5. **Agent Orchestration**
-- LangGraph-based workflow management
+- LangGraph-based workflow management with conditional edges
 - Coordinated agent execution with state management
-- Error recovery and retry mechanisms
+- Error recovery and retry mechanisms with exponential backoff
 - Memory persistence with Mem0
+- Parallel agent execution where applicable
 
 ### Usage Examples
 
@@ -383,6 +560,31 @@ result = await perform_rag_query_with_metrics(
 )
 ```
 
+## Additional Implementation Details
+
+### Performance Optimizations
+- **Parallel Content Processing**: Uses ThreadPoolExecutor for concurrent processing of embeddings and code summaries
+- **Batch Operations**: Configurable batch sizes (default 20) for efficient database insertions
+- **Memory-Adaptive Crawling**: MemoryAdaptiveDispatcher monitors system resources during crawling
+- **Smart Chunking**: Respects markdown structure, code blocks, and natural text boundaries
+
+### Agent Implementation Details
+- **BaseAgent Class**: Abstract base class for all agents with state management and validation
+- **Dependency Validator**: Checks Python dependencies, validates versions, and auto-fixes issues
+- **Code Debugger**: AST-based syntax validation, automatic error fixing, and code quality checks
+- **Integration Tester**: Runs unit tests, integration tests, and monitors performance metrics
+
+### Database Schema Enhancements
+- **Sources Table**: Tracks unique sources with summaries and word counts
+- **Code Examples Table**: Dedicated table for code snippets with summaries and metadata
+- **Improved Indexing**: Optimized indexes for hybrid search performance
+
+### Error Handling & Recovery
+- **Circuit Breakers**: Automatic failure detection and service isolation
+- **Exponential Backoff**: Smart retry logic for transient failures
+- **Graceful Degradation**: System continues with reduced functionality when services fail
+- **Comprehensive Logging**: Detailed error tracking and diagnostics
+
 ## Building Your Own Server
 
 This implementation provides a foundation for building more complex MCP servers with web crawling capabilities. To build your own:
@@ -393,3 +595,5 @@ This implementation provides a foundation for building more complex MCP servers 
 4. Extend the crawling capabilities by adding more specialized crawlers
 5. Implement custom agents by extending the BaseAgent class
 6. Add new RAG strategies in the evaluation system
+7. Customize the security sandbox for your specific requirements
+8. Extend the resource management system with custom limits

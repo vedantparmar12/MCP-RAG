@@ -904,48 +904,6 @@ class DocumentationGenerator:
         return guide
 ```
 
-### 8. **Multi-Model Support**
-```python
-class MultiModelEmbedding:
-    """Support for multiple embedding models"""
-    
-    def __init__(self):
-        self.models = {
-            "openai": OpenAIEmbeddings(),
-            "ollama": OllamaEmbeddings(model="nomic-embed-text"),
-            "huggingface": HuggingFaceEmbeddings(model="all-MiniLM-L6-v2"),
-            "cohere": CohereEmbeddings()
-        }
-        self.performance_tracker = {}
-    
-    async def get_embeddings(self, text: str, model: str = "auto") -> List[float]:
-        """Get embeddings with automatic model selection"""
-        if model == "auto":
-            model = await self._select_best_model()
-        
-        start_time = time.time()
-        embeddings = await self.models[model].embed(text)
-        
-        # Track performance
-        self.performance_tracker[model] = {
-            "latency": time.time() - start_time,
-            "timestamp": datetime.now()
-        }
-        
-        return embeddings
-    
-    async def _select_best_model(self) -> str:
-        """Select best performing model based on metrics"""
-        if not self.performance_tracker:
-            return "openai"  # Default
-        
-        # Consider latency, cost, and quality
-        scores = {}
-        for model, metrics in self.performance_tracker.items():
-            scores[model] = self._calculate_model_score(metrics)
-        
-        return max(scores, key=scores.get)
-```
 
 ## Implementation Roadmap
 
